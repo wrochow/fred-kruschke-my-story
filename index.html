@@ -13,6 +13,7 @@
       --text: #ffffff;
       --text-muted: #b3b3b3;
       --border: #333333;
+      --cover-max-height: 40vh;
     }
 
     * {
@@ -47,6 +48,15 @@
       background: linear-gradient(180deg, #282828 0%, var(--surface) 100%);
       text-align: center;
       border-bottom: 1px solid var(--border);
+    }
+
+    .cover-image {
+      display: block;
+      width: 100%;
+      max-height: var(--cover-max-height);
+      object-fit: contain;
+      border-radius: 8px;
+      margin-bottom: 16px;
     }
 
     .track-title {
@@ -197,6 +207,7 @@
   <div id="status-banner" class="status-banner"></div>
 
   <div class="now-playing">
+    <img class="cover-image" src="img/W.Kruschke%201954%20Silberhochzeit_1.jpg" alt="W. Kruschke silver wedding anniversary, 1954">
     <div id="track-title" class="track-title">Select a track</div>
     <div id="track-artist" class="track-artist">Playlist Ready</div>
 
