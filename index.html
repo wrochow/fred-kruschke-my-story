@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Story by Fred Kruschke</title>
+  <style>
+    :root {
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface-hover: #2a2a2a;
+      --primary: #1db954;
+      --text: #ffffff;
+      --text-muted: #b3b3b3;
+      --border: #333333;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .player-container {
+      background-color: var(--surface);
+      width: 100%;
+      max-width: 480px;
+      border-radius: 12px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .now-playing {
+      padding: 24px;
+      background: linear-gradient(180deg, #282828 0%, var(--surface) 100%);
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .track-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .track-artist {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .progress-container {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      margin-top: 12px;
+    }
+
+    button {
+      background: none;
+      border: none;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: transform 0.1s, color 0.2s;
+    }
+
+    button:hover {
+      color: var(--primary);
+    }
+
+    button:active {
+      transform: scale(0.95);
+    }
+
+    .play-btn {
+      background-color: var(--primary);
+      color: #000;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      font-size: 1.2rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: bold;
+    }
+
+    .play-btn:hover {
+      color: #000;
+      transform: scale(1.05);
+    }
+
+    .status-banner {
+      display: none;
+      background-color: #b00020;
+      color: white;
+      font-size: 0.8rem;
+      padding: 8px 16px;
+      text-align: center;
+    }
+
+    .playlist {
+      list-style: none;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .playlist li {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background-color 0.2s;
+    }
+
+    .playlist li:last-child {
+      border-bottom: none;
+    }
+
+    .playlist li:hover {
+      background-color: var(--surface-hover);
+    }
+
+    .playlist li.active {
+      background-color: rgba(29, 185, 84, 0.15);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .playlist-item-info {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding-right: 12px;
+    }
+
+    .playlist-item-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 0.95rem;
+    }
+
+    .playlist-item-artist {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .playlist li.active .playlist-item-artist {
+      color: var(--primary);
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+<div class="player-container">
+  <div id="status-banner" class="status-banner"></div>
+
+  <div class="now-playing">
+    <div id="track-title" class="track-title">Select a track</div>
+    <div id="track-artist" class="track-artist">Playlist Ready</div>
+
+    <div class="progress-container">
+      <input type="range" id="seek-bar" value="0" min="0" max="100" step="0.1">
+      <div class="time-display">
+        <span id="current-time">0:00</span>
+        <span id="duration">0:00</span>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="prev-btn" title="Previous Track">&#9664;&#9664;</button>
+      <button id="play-pause-btn" class="play-btn" title="Play/Pause">&#9654;</button>
+      <button id="next-btn" title="Next Track">&#9654;&#9654;</button>
+    </div>
+  </div>
+
+  <ul id="playlist-el" class="playlist"></ul>
+</div>
+
+<audio id="audio-player" preload="metadata"></audio>
+
+<script>
+  // ==========================================
+  // 1. CONFIGURE YOUR PLAYLIST HERE
+  // Each url is the path of an MP3 in this repository's audio folder.
+  // ==========================================
+  const playlist = [
+    {
+      title: "Track 01: My Story, Your Story",
+      artist: "Fred Kruschke",
+      url: "audio/01_-_My_Story,_Your_Story.mp3"
+    },
+      {
+      title: "Track 02: Introduction",
+      artist: "Fred Kruschke",
+      url: "audio/02_-_My_introduction.mp3"
+    },
+      {
+      title: "Track 03: Some Family Background",
+      artist: "Fred Kruschke",
+      url: "audio/03_-_Some_Family_Background.mp3"
+    },
+      {
+      title: "Track 04: People of Faith",
+      artist: "Fred Kruschke",
+      url: "audio/04_-_People_Of_Faith.mp3"
+    },
+      {
+      title: "Track 05: Hitler Youth and The Third Reich",
+      artist: "Fred Kruschke",
+      url: "audio/05_-_Hitler_Youth_And_The_Third_Reich.mp3"
+    },
+      {
+      title: "Track 06: Dad was not Fooled",
+      artist: "Fred Kruschke",
+      url: "audio/06_-_Dad_Was_Not_Fooled.mp3"
+    },
+      {
+      title: "Track 07: Some Childhood Impressions",
+      artist: "Fred Kruschke",
+      url: "audio/07_-_Some_Childhood_Impressions.mp3"
+    },
+      {
+      title: "Track 08: Ours Was a Happy Home",
+      artist: "Fred Kruschke",
+      url: "audio/08_-_Ours_Was_A_Happy_Home.mp3"
+    },
+      {
+      title: "Track 09: Polish Conscripts",
+      artist: "Fred Kruschke",
+      url: "audio/09_-_Polish_Conscripts.mp3"
+    },
+      {
+      title: "Track 10: My Grandparents and the Cordes Connection",
+      artist: "Fred Kruschke",
+      url: "audio/10_-_My_Grandparents_And_The_Cordes_Connection.mp3"
+    },
+      {
+      title: "Track 11: That Girl Has to go West",
+      artist: "Fred Kruschke",
+      url: "audio/11_-_That_Girl_Has_To_Go_West.mp3"
+    },
+      {
+      title: "Track 12: Leaving Home",
+      artist: "Fred Kruschke",
+      url: "audio/12_-_Leaving_Home.mp3"
+    },
+      {
+      title: "Track 13: Refugees",
+      artist: "Fred Kruschke",
+      url: "audio/13_-_Refugees.mp3"
+    },
+      {
+      title: "Track 14: The Gentle Opa Beyer",
+      artist: "Fred Kruschke",
+      url: "audio/14_-_The_Gentle_Opa_Beyer.mp3"
+    },
+      {
+      title: "Track 15: The Decision to Leave Germany",
+      artist: "Fred Kruschke",
+      url: "audio/15_-_The_Decision_To_Leave_Germany.mp3"
+    },
+      {
+      title: "Track 16: The Passage to Canada",
+      artist: "Fred Kruschke",
+      url: "audio/16_-_The_Passage_To_Canada.mp3"
+    }
+];
+
+  // ==========================================
+  // 2. PLAYER LOGIC
+  // ==========================================
+  const audio = document.getElementById('audio-player');
+  const playPauseBtn = document.getElementById('play-pause-btn');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  const seekBar = document.getElementById('seek-bar');
+  const currentTimeEl = document.getElementById('current-time');
+  const durationEl = document.getElementById('duration');
+  const trackTitleEl = document.getElementById('track-title');
+  const trackArtistEl = document.getElementById('track-artist');
+  const playlistEl = document.getElementById('playlist-el');
+  const statusBanner = document.getElementById('status-banner');
+
+  let currentIndex = 0;
+  let isPlaying = false;
+
+  function formatTime(seconds) {
+    if (isNaN(seconds)) return "0:00";
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  }
+
+  function renderPlaylist() {
+    playlistEl.innerHTML = '';
+    playlist.forEach((track, index) => {
+      const li = document.createElement('li');
+      if (index === currentIndex) li.classList.add('active');
+      
+      li.innerHTML = `
+        <div class="playlist-item-info">
+          <span class="playlist-item-title">${index + 1}. ${track.title}</span>
+          <span class="playlist-item-artist">${track.artist}</span>
+        </div>
+        <span>${index === currentIndex && isPlaying ? '&#9835;' : ''}</span>
+      `;
+      
+      li.addEventListener('click', () => {
+        loadTrack(index);
+        playTrack();
+      });
+      
+      playlistEl.appendChild(li);
+    });
+  }
+
+  function loadTrack(index) {
+    statusBanner.style.display = 'none';
+    currentIndex = index;
+    const track = playlist[currentIndex];
+    
+    trackTitleEl.textContent = track.title;
+    trackArtistEl.textContent = track.artist;
+    audio.src = track.url;
+    
+    seekBar.value = 0;
+    currentTimeEl.textContent = "0:00";
+    durationEl.textContent = "0:00";
+    renderPlaylist();
+  }
+
+  function playTrack() {
+    audio.play().then(() => {
+      isPlaying = true;
+      playPauseBtn.innerHTML = '&#10074;&#10074;'; // Pause icon
+      renderPlaylist();
+    }).catch(err => {
+      console.error("Playback error:", err);
+      showError("Playback could not start. Press play to try again.");
+    });
+  }
+
+  function pauseTrack() {
+    audio.pause();
+    isPlaying = false;
+    playPauseBtn.innerHTML = '&#9654;'; // Play icon
+    renderPlaylist();
+  }
+
+  function showError(msg) {
+    statusBanner.textContent = msg;
+    statusBanner.style.display = 'block';
+    pauseTrack();
+  }
+
+  // Event Listeners
+  playPauseBtn.addEventListener('click', () => {
+    isPlaying ? pauseTrack() : playTrack();
+  });
+
+  prevBtn.addEventListener('click', () => {
+    currentIndex = (currentIndex - 1 + playlist.length) % playlist.length;
+    loadTrack(currentIndex);
+    playTrack();
+  });
+
+  nextBtn.addEventListener('click', () => {
+    currentIndex = (currentIndex + 1) % playlist.length;
+    loadTrack(currentIndex);
+    playTrack();
+  });
+
+  audio.addEventListener('timeupdate', () => {
+    if (audio.duration) {
+      seekBar.value = (audio.currentTime / audio.duration) * 100;
+      currentTimeEl.textContent = formatTime(audio.currentTime);
+    }
+  });
+
+  audio.addEventListener('loadedmetadata', () => {
+    durationEl.textContent = formatTime(audio.duration);
+  });
+
+  seekBar.addEventListener('input', () => {
+    if (audio.duration) {
+      audio.currentTime = (seekBar.value / 100) * audio.duration;
+    }
+  });
+
+  // Auto-advance to next track when current song ends
+  audio.addEventListener('ended', () => {
+    nextBtn.click();
+  });
+
+  // Report files that fail to load
+  audio.addEventListener('error', () => {
+    showError("This track could not be loaded.");
+  });
+
+  // Initialize first track
+  loadTrack(0);
+</script>
+
+</body>
+</html>
